@@ -1,10 +1,28 @@
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from django import forms
 from django.contrib import admin
+from django.db.models import Count
+from django.template.response import TemplateResponse
+from django.urls import path
 from django.utils.safestring import mark_safe
 
 from .models import Category, Course, Lesson, Tag
 from django.contrib.auth.models import Permission
+
+
+class EcourseAppAdminSite(admin.AdminSite):
+    site_header = 'HỆ THỐNG KHÓA HỌC TRỰC TUYẾN'
+
+    def get_urls(self):
+        return [path('course-stats/', self.stats_view)] + super().get_urls()
+
+    def stats_view(self, request):
+        course_count = Course.objects.filter(active=True).count()
+        course_stats = Course.objects.annotate(lesson_count=Count('lesson__id')).values('id', 'name', 'lesson_count')
+        return TemplateResponse(request, 'admin/course_stats.html', {
+            'course_count': course_count,
+            'course_stats': course_stats
+        })
 
 
 class CategoryAdmin(admin.ModelAdmin):
@@ -80,9 +98,11 @@ class TagAdmin(admin.ModelAdmin):
     search_fields = ['name']
 
 
+admin_site = EcourseAppAdminSite(name='myapp')
+
 # Register your models here.
-admin.site.register(Category, CategoryAdmin)
-admin.site.register(Course, CourseAdmin)
-admin.site.register(Lesson, LessonAdmin)
-admin.site.register(Tag, TagAdmin)
-admin.site.register(Permission)
+admin_site.register(Category, CategoryAdmin)
+admin_site.register(Course, CourseAdmin)
+admin_site.register(Lesson, LessonAdmin)
+admin_site.register(Tag, TagAdmin)
+admin_site.register(Permission)
